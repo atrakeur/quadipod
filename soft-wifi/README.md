@@ -8,7 +8,8 @@ Provide communication as well as webserver capablity from an esp8266
  - Flash firmware `esptool.py write_flash 0x00000 ./nodemcu-master-8-modules-2017-05-06-19-50-14-integer.bin`
  - Startup nodemcu and let it auto create file system (can take up to 10 min)
  - Flash all files in src directory to ESP (using ESPlorer for example)
- - Enjoy
+ - Flash all files from ../quadripod-client (index.html and bundle.js)
+ - Connect on the IP of the ESP and enjoy!
 
 ## Usage
 

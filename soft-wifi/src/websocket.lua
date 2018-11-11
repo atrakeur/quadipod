@@ -134,11 +134,41 @@ do
             function () callback(socket) end)
           buffer = ""
         else
-          conn:send(
-            "HTTP/1.1 404 Not Found\r\nConnection: Close\r\n\r\n",
-            conn.close)
+          -- Try to serve a file
+          local _, _, method, path = string.find(chunk, "([A-Z]+) /(.*) HTTP");
+          if (path == '') then
+            path = 'index.html'
+          end
+
+          print("path: "..path)
+
+          -- If file exist, open and send
+          if (string.len(path) < 20) and file.open(path, 'r') then
+            print('200')
+
+            conn:send("HTTP/1.1 200 OK\r\n")
+            conn:send("Cache-Control: no-cache, must-revalidate, post-check=0, pre-check=0\r\n")
+            conn:send("Connection: close\r\n")
+            conn:send("Content-Type: text/html; charset=utf-8\r\n")
+            conn:send("\r\n")
+
+            while true do
+              n = file.read(1024)
+              if (n == nil) then
+                  break
+              end
+              conn:send(n)
+            end
+
+            file.close()
+          else
+            conn:send(
+              "HTTP/1.1 404 Not Found\r\nConnection: Close\r\n\r\n",
+              conn.close)
+          end
         end
       end)
     end)
   end
 end
+print("WEBSOCK:LOADED")
