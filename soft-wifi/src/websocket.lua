@@ -168,7 +168,7 @@ do
         end
 
         if method == "GET" and key then
-          localConnection.send(
+          conn:send(
             "HTTP/1.1 101 Switching Protocols\r\n" ..
             "Upgrade: websocket\r\nConnection: Upgrade\r\n" ..
             "Sec-WebSocket-Accept: " .. acceptKey(key) .. "\r\n\r\n",
