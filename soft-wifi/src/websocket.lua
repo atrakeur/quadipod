@@ -12,6 +12,13 @@ do
   local toBase64 = crypto.toBase64
   local hash = crypto.hash
 
+  local isFileServeRunning = false
+  local currentFileOpen = nil
+  local currentConnOpen = nil
+
+  local listOfPaths = {}
+  local listOfConn = {}
+
   local function decode(chunk)
     if #chunk < 2 then return end
     local second = byte(chunk, 2)
@@ -80,6 +87,40 @@ do
     return toBase64(hash("sha1", key .. guid))
   end
 
+  function handleFileServing()
+    -- No current file open, start serving one
+    if (currentFileOpen == nil) then
+      conn = table.remove(listOfConn)
+      path = table.remove(listOfPaths)
+
+      if (path == nil) then
+        return false
+      end
+
+      -- This is a file we can open, send header
+      if (string.len(path) < 20) and file.open(path, 'r') then
+        currentFileOpen = path
+        conn:send("HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n")
+        -- Called when previous sent temrinated, send the next block
+        conn:on("sent", function(conn, c)
+          n = file.read(1024)
+          if (n == nil) then
+            conn:close()
+            file.close()
+            currentFileOpen = nil
+          else
+            conn:send(n)
+          end
+        end)
+      else
+        conn:send("HTTP/1.1 404 Not Found\r\nConnection: Close\r\n\r\n",
+          conn.close)
+      end
+    end
+
+    return true
+  end
+
   function websocket.createServer(port, callback)
     net.createServer(net.TCP):listen(port, function(conn)
       local buffer = false
@@ -106,7 +147,7 @@ do
         conn:close()
       end
 
-      conn:on("receive", function(_, chunk)
+      conn:on("receive", function(localConnection, chunk)
         if buffer then
           buffer = buffer .. chunk
           while true do
@@ -127,7 +168,7 @@ do
         end
 
         if method == "GET" and key then
-          conn:send(
+          localConnection.send(
             "HTTP/1.1 101 Switching Protocols\r\n" ..
             "Upgrade: websocket\r\nConnection: Upgrade\r\n" ..
             "Sec-WebSocket-Accept: " .. acceptKey(key) .. "\r\n\r\n",
@@ -140,31 +181,20 @@ do
             path = 'index.html'
           end
 
-          print("path: "..path)
+          -- Requested a file, let's push it to the list of files to serve
+          table.insert(listOfPaths, path)
+          table.insert(listOfConn, localConnection)
 
-          -- If file exist, open and send
-          if (string.len(path) < 20) and file.open(path, 'r') then
-            print('200')
-
-            conn:send("HTTP/1.1 200 OK\r\n")
-            conn:send("Cache-Control: no-cache, must-revalidate, post-check=0, pre-check=0\r\n")
-            conn:send("Connection: close\r\n")
-            conn:send("Content-Type: text/html; charset=utf-8\r\n")
-            conn:send("\r\n")
-
-            while true do
-              n = file.read(1024)
-              if (n == nil) then
-                  break
+          if (not isFileServeRunning) then
+            sendTimer = tmr.create()
+            sendTimer:register(200, tmr.ALARM_AUTO, function ()
+              if (not handleFileServing()) then
+                isFileServeRunning = false
+                sendTimer:stop()
               end
-              conn:send(n)
-            end
-
-            file.close()
-          else
-            conn:send(
-              "HTTP/1.1 404 Not Found\r\nConnection: Close\r\n\r\n",
-              conn.close)
+            end)
+            isFileServeRunning = true
+            sendTimer:start()
           end
         end
       end)
