@@ -1,30 +1,22 @@
 import React, { Component } from 'react';
-import Socket, { SocketEventEmitter } from './Components/Socket'
-import logo from './logo.svg';
-import './App.css';
+
+import Router from 'preact-router'
+
+import { Container } from './components/Style'
+import Socket, { SocketEventEmitter } from './components/Socket'
+
+console.log(Container)
 
 class App extends Component {
   render() {
-    SocketEventEmitter.on('tamere', (data) => console.log(data))
-
     return (
       <Socket>
-        <div className="App">
-          <header className="App-header">
-            <img src={logo} className="App-logo" alt="logo" />
-            <p>
-              Edit <code>src/App.js</code> and save to reload.
-            </p>
-            <a
-              className="App-link"
-              href="https://reactjs.org"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learn React
-            </a>
-          </header>
-        </div>
+        <Container>
+          <Router>
+            <div path="/">Lala</div>
+            <div path="/test">Lol</div>
+          </Router>
+        </Container>
       </Socket>
     );
   }
